@@ -1,7 +1,10 @@
-Sample Module Repository
+Export Audible library list of books to a Google Sheet document
 ========================
+Script to export the list of books in one's Audible library into a Google Sheet document
 
-This simple project is an example repo for Python projects.
+It uses `mkb79's Audible API <https://github.com/mkb79/Audible>`_.
+
+
 
 `Learn more <http://www.kennethreitz.org/essays/repository-structure-and-python>`_.
 
