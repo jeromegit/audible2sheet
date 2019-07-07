@@ -4,12 +4,22 @@ Script to export the list of books in one's Audible library into a Google Sheet 
 
 It uses `mkb79's Audible API <https://github.com/mkb79/Audible>`_.
 
+## Requirements
+
+- Python >= 3.6
+- depends on following packages:
+  - audible
+
+## Installation
+
+`pip install audible2sheet`
+
+## Usage
+audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd
 
 
-`Learn more <http://www.kennethreitz.org/essays/repository-structure-and-python>`_.
+### Basis Examples
 
 ---------------
-
-If you want to learn more about ``setup.py`` files, check out `this repository <https://github.com/kennethreitz/setup.py>`_.
 
 ✨🍰✨
