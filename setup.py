@@ -20,6 +20,11 @@ setup(
     author_email='jerome@provensal.com',
     url='https://github.com/jeromegit/audible2sheet',
     license=license,
+    entry_points={
+        'console_scripts': [
+            'audible2sheet=audible2sheet:main',
+        ]
+    },
     packages=find_packages(exclude=('tests', 'docs'))
 )
 
