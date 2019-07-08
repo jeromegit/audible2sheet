@@ -3,7 +3,9 @@
 # Learn more: https://github.com/kennethreitz/setup.py
 
 from setuptools import setup, find_packages
+from os import path
 
+here = path.abspath(path.dirname(__file__))
 
 with open('README.rst') as f:
     readme = f.read()
