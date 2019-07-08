@@ -15,14 +15,12 @@ Requirements
 
 Installation
 ============
-.. code-block:: shell-session
-  pip install audible2sheet
+``pip install audible2sheet``
 
 Usage
 =====
 Just print the list to the screen:
-.. code-block:: shell-session
-  audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd
+  ``audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd``
 
 
 ---------------
