@@ -10,6 +10,7 @@ Requirements
 
 - Python >= 3.6
 - depends on following packages:
+
   - audible
 
 Installation
