@@ -12,14 +12,19 @@ with open('LICENSE') as f:
     license = f.read()
 
 setup(
-    name='sample',
+    name='audible2sheet',
     version='0.1.0',
-    description='Sample package for Python-Guide.org',
+    description='Script to export the list of books in one\'s Audible library into a Google Sheet document',
     long_description=readme,
-    author='Kenneth Reitz',
-    author_email='me@kennethreitz.com',
-    url='https://github.com/kennethreitz/samplemod',
+    author='Jerome Provensal',
+    author_email='jerome@provensal.com',
+    url='https://github.com/jeromegit/audible2sheet',
     license=license,
+    entry_points={
+        'console_scripts': [
+            'audible2sheet=audible2sheet:main',
+        ]
+    },
     packages=find_packages(exclude=('tests', 'docs'))
 )
 
