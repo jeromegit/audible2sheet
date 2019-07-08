@@ -1,5 +1,5 @@
 ========================
-Export Audible library list of books to a Google Sheet document
+audible2sheet
 ========================
 Script to export the list of books in one's Audible library into a Google Sheet document
 
@@ -19,6 +19,7 @@ Installation
 
 Usage
 =====
+
 Just print the list to the screen:
   ``audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd``
 
