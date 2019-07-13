@@ -72,7 +72,7 @@ def extract_authors_from_json_list_sting(json_list_str):
 
 class AudibleClient:
     """
-    Audible client session either:
+    Audible client session which can be created by either:
         * from an already saved session file
         * or by providing credentials
     """
