@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST.in
+README.md
+setup.py
+audible2sheet/__init__.py
+audible2sheet/audible2sheet.py
+audible2sheet/core.py
+audible2sheet/helpers.py
+audible2sheet.egg-info/PKG-INFO
+audible2sheet.egg-info/SOURCES.txt
+audible2sheet.egg-info/dependency_links.txt
+audible2sheet.egg-info/entry_points.txt
+audible2sheet.egg-info/requires.txt
+audible2sheet.egg-info/top_level.txt

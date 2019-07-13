@@ -1,0 +1,3 @@
+[console_scripts]
+audible2sheet = audible2sheet:main
+
