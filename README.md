@@ -17,10 +17,11 @@ Installation
 ------------
 ``pip install audible2sheet``
 
+If you want to save your library to a Google Sheet, you need to follow `step 1: Turn on the Google Sheets API <https://developers.google.com/sheets/api/quickstart/python#step_1_turn_on_the>`_.
+
 Usage
 -----
-Just print the list to the screen:
+Just print the list of books to the screen:
   ``audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd``
-
 
 ✨🍰✨

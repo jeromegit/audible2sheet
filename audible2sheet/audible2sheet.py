@@ -10,7 +10,7 @@ import argparse
 import audible
 
 LOCAL_DEFAULT = "us"
-SESSION_FILE_PATH_DEFAULT = os.environ[HOME] + "/.audible_session"
+SESSION_FILE_PATH_DEFAULT = os.environ["HOME"] + "/.audible_session"
 
 
 def convert_length_in_minutes_to_hr_min_str(length_minutes):
@@ -131,14 +131,18 @@ class AudibleClient:
         """Run query and get results on Audible connection."""
         try:
             return self._client.get(*args, **kwarg)
-        except AttributeError:
+        except:
             print("Failed to get data from Audible")
 
 
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(
-        description="Pull Audible library books and output them to the screen or to a Google Sheet"
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="""
+Pull Audible library books and output them to the screen or to a Google Sheet.
+If Google credentials aren't specified, it outputs the list of books to the screen/STDOUT "|"-separated
+""",
     )
     parser.add_argument("-e", "--email", help="Audible email/login")
     parser.add_argument("-p", "--password", help="Audible password")
@@ -146,16 +150,26 @@ def main():
     parser.add_argument(
         "-s", "--session", help="Session file path", default=SESSION_FILE_PATH_DEFAULT
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Verbose output to show addditonal information",
+        action="store_true",
+    )
     args = parser.parse_args()
-    if args.email:
-        print(f"Email: {args.email}")
 
     client = AudibleClient(args.email, args.password, args.local, args.session)
     if not client.is_logged_in():
         raise Exception("Failed to connect to Audible")
-    # get library
-    for page in range(1, 100):
-        print("Requesting page {}".format(page), file=sys.stderr)
+    # get list of books from Audible library
+    # since there's no way to know how many books or pages of books, assume that it won't be more that 1000*50
+    books = []
+    for page in range(1, 1000):
+        if args.verbose:
+            print("Requesting page {}".format(page), file=sys.stderr)
+#        else:
+#            print(".", end=".", file=sys.stderr)
+
         library = client.get(
             "library",
             num_results=50,
@@ -166,9 +180,6 @@ def main():
         if items:
             for item in items:
                 if item["content_type"] != "Newspaper / Magazine":
-                    print(
-                        "------------------------------------------------------------------------------------------------------"
-                    )
                     asin = item["asin"]
                     title = item["title"]
 
@@ -181,12 +192,16 @@ def main():
                     length_min = item["runtime_length_min"]
                     length_hr_min = convert_length_in_minutes_to_hr_min_str(length_min)
 
-                    print(
+                    books.append(
                         "|".join([asin, title, authors, length_hr_min, purchase_date])
                     )
         else:
             #        print("Done with getting the library")
             break
+    if books:
+        print("|".join(["ASIN", "title", "authors", "length_hh:mm", "purchase_date"]))
+        for book in books:
+            print(book)
 
 
 if __name__ == "__main__":
