@@ -4,6 +4,9 @@ Script to export someone's audible library into a Google Sheet.
 """
 import sys
 import os
+import time
+import json
+import logging
 from datetime import datetime, timezone
 from warnings import warn
 import argparse
@@ -11,6 +14,7 @@ import audible
 
 LOCAL_DEFAULT = "us"
 SESSION_FILE_PATH_DEFAULT = os.environ["HOME"] + "/.audible_session"
+CONTENT_TYPE_TO_OMIT = ("Speech", "Newspaper / Magazine")
 
 
 def convert_length_in_minutes_to_hr_min_str(length_minutes):
@@ -85,7 +89,7 @@ class AudibleClient:
         self._local = local
         self._session_file = session_file
 
-        if not os.path.exists(self._session_file):
+        if not os.path.exists(self._session_file) or self._has_session_expired():
             self._create_with_credentials()
 
         try:
@@ -106,9 +110,19 @@ class AudibleClient:
             msg = f"Can't log into Audible using session file ({self._session_file}): {msg}"
             raise Exception(msg)
 
+    def _has_session_expired(self):
+        with open(self._session_file) as session_file:
+            session = json.load(session_file)
+            if "expires" in session:
+                if time.time() < session["expires"]:
+                    return False
+        logging.info("Session has expired")
+        return True
+
     def _create_with_credentials(self):
         if self._email and self._password:
             try:
+                logging.info("Creating session using login/password credentials")
                 self._client = audible.Client(
                     self._email, self._password, local=self._local
                 )
@@ -157,18 +171,26 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         action="store_true",
     )
     args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    if args.email and not args.password:
+        # The email was specified but not the password and so need to prompt the user for the password
+        password = input("Please enter your Audible password: ")
+    else:
+        password = args.password
 
     client = AudibleClient(args.email, args.password, args.local, args.session)
     if not client.is_logged_in():
         raise Exception("Failed to connect to Audible")
+        
     # get list of books from Audible library
     # since there's no way to know how many books or pages of books, assume that it won't be more that 1000*50
     books = []
     for page in range(1, 1000):
-        if args.verbose:
-            print("Requesting page {}".format(page), file=sys.stderr)
-#        else:
-#            print(".", end=".", file=sys.stderr)
+        logging.info("Requesting page {}".format(page))
+        #        else:
+        #            print(".", end=".", file=sys.stderr)
 
         library = client.get(
             "library",
@@ -179,9 +201,14 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         items = library["items"]
         if items:
             for item in items:
-                if item["content_type"] != "Newspaper / Magazine":
+                if (not item["content_type"] in CONTENT_TYPE_TO_OMIT) and (
+                    item["runtime_length_min"] > 0
+                ):
                     asin = item["asin"]
                     title = item["title"]
+                    sub_title = item["subtitle"]
+                    if sub_title:
+                        title = title + ": " + sub_title
 
                     all_authors = item["authors"]
                     authors = extract_authors_from_json_list_sting(all_authors)
