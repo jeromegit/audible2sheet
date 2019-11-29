@@ -29,11 +29,29 @@ If you want to save your library to a Google Sheet, you need to follow:
 
 Authentication
 --------------
-In order to access your Audible library, you will need 
+In order to access your Audible library, you need to provide login and password to the script in order to log in on your behalf.
+The first time you do this, you will be challenged with a CAPTCHA image that looks like this:
+
+
+and prompted at the command line with:
+   Answer for CAPTCHA:
+(Note that you might be prompted more than once if you answer incorrectly)
+
+Once the CAPTCHA has been successfully verified, your access is granted and your session is saved in your homedir's .audible_session file unless specified otherwise with -s file_path
+Finally, your locale ("us" by default) can be specified if you live outside the US.
+
+Once your session has been established you no longer need to specify your email or password until the session expires. It seems to expire after 24 hours at this point.
+
+
+
 Usage
 -----
 Just print the list of books to the screen:
-``audible2sheet.py -e myemail@company.com -p MyK0mplXPasswd``
+``audible2sheet.py -e myemail@company.com [-p MyK0mplXPasswd]``
+
+If you don't specify -p password, you will be prompted for it with:
+  Please enter your Audible password:
+It's actually safer to not specify it at the command line as shell history will reveal it to prying eyes.
   
 
 Notes
