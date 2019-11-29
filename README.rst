@@ -3,7 +3,7 @@ audible2sheet: your Audible library in a Google sheet!
 
 Script to export the list of books in one's Audible library into a Google Sheet document
 
-It uses `mkb79's Audible API <https://github.com/mkb79/Audible>`_.
+It uses `mkb79's excellent Audible API <https://github.com/mkb79/Audible>`_.
 
 Requirements
 ------------
@@ -32,9 +32,10 @@ Authentication
 In order to access your Audible library, you need to provide login and password to the script in order to log in on your behalf.
 The first time you do this, you will be challenged with a CAPTCHA image that looks like this:
 
-
 and prompted at the command line with:
-   Answer for CAPTCHA:
+
+   ``Answer for CAPTCHA:``
+   
 (Note that you might be prompted more than once if you answer incorrectly)
 
 Once the CAPTCHA has been successfully verified, your access is granted and your session is saved in your homedir's .audible_session file unless specified otherwise with -s file_path
@@ -47,10 +48,13 @@ Once your session has been established you no longer need to specify your email 
 Usage
 -----
 Just print the list of books to the screen:
+
 ``audible2sheet.py -e myemail@company.com [-p MyK0mplXPasswd]``
 
 If you don't specify -p password, you will be prompted for it with:
-  Please enter your Audible password:
+
+``Please enter your Audible password:``
+
 It's actually safer to not specify it at the command line as shell history will reveal it to prying eyes.
   
 
