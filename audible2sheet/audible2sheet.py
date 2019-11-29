@@ -12,7 +12,7 @@ from warnings import warn
 import argparse
 import audible
 
-LOCAL_DEFAULT = "us"
+LOCALE_DEFAULT = "us"
 SESSION_FILE_PATH_DEFAULT = os.environ["HOME"] + "/.audible_session"
 CONTENT_TYPE_TO_OMIT = ("Speech", "Newspaper / Magazine")
 
@@ -82,11 +82,11 @@ class AudibleClient:
     """
 
     def __init__(
-        self, email, password, local="us", session_file="/tmp/audible_session_file.txt"
+        self, email, password, locale="us", session_file="/tmp/audible_session_file.txt"
     ):
         self._email = email
         self._password = password
-        self._local = local
+        self._locale = locale
         self._session_file = session_file
 
         if not os.path.exists(self._session_file) or self._has_session_expired():
@@ -103,9 +103,11 @@ class AudibleClient:
     def _restore_from_session_file(self):
         # Try to restore session from file if possible
         try:
-            self._client = audible.Client(
-                local=self._local, filename=self._session_file
+            auth = audible.FileAuthenticator(
+                filename=self._session_file, locale=self._locale, 
+                register=True
             )
+            self._client = audible.AudibleAPI(auth)
         except Exception as msg:
             msg = f"Can't log into Audible using session file ({self._session_file}): {msg}"
             raise Exception(msg)
@@ -114,7 +116,7 @@ class AudibleClient:
         with open(self._session_file) as session_file:
             session = json.load(session_file)
             if "expires" in session:
-                if time.time() < session["expires"]:
+                if session["expires"] == None or time.time() < session["expires"]:
                     return False
         logging.info("Session has expired")
         return True
@@ -123,8 +125,8 @@ class AudibleClient:
         if self._email and self._password:
             try:
                 logging.info("Creating session using login/password credentials")
-                self._client = audible.Client(
-                    self._email, self._password, local=self._local
+                auth = audible.LoginAuthenticator(
+                    self._email, self._password, locale=self._locale
                 )
             except Exception as msg:
                 print(f"Can't log into Audible using credentials: {msg}")
@@ -133,9 +135,8 @@ class AudibleClient:
             raise Exception("Both email and password must be specified")
 
         # save session after initializing
-        self._client = audible.Client(
-            self._email, self._password, local=self._local, filename=self._session_file
-        )
+        auth.to_file(self._session_file, encryption=False)
+        self._client = audible.AudibleAPI(auth)
 
     def is_logged_in(self):
         """Check if an Audible connection has been sucessfully established."""
@@ -159,10 +160,10 @@ If Google credentials aren't specified, it outputs the list of books to the scre
 """,
     )
     parser.add_argument("-e", "--email", help="Audible email/login")
-    parser.add_argument("-p", "--password", help="Audible password")
-    parser.add_argument("-l", "--local", help="Local region", default=LOCAL_DEFAULT)
+    parser.add_argument("-p", "--password", help="Audible password (if not specified, you will be prompted for it)")
+    parser.add_argument("-l", "--locale", help="Locale (region)", default=LOCALE_DEFAULT)
     parser.add_argument(
-        "-s", "--session", help="Session file path", default=SESSION_FILE_PATH_DEFAULT
+        "-s", "--session", help="Audible session file path", default=SESSION_FILE_PATH_DEFAULT
     )
     parser.add_argument(
         "-v",
@@ -180,7 +181,7 @@ If Google credentials aren't specified, it outputs the list of books to the scre
     else:
         password = args.password
 
-    client = AudibleClient(args.email, args.password, args.local, args.session)
+    client = AudibleClient(args.email, password, args.locale, args.session)
     if not client.is_logged_in():
         raise Exception("Failed to connect to Audible")
         
@@ -192,14 +193,14 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         #        else:
         #            print(".", end=".", file=sys.stderr)
 
-        library = client.get(
+        library, response = client.get(
             "library",
             num_results=50,
             page=page,
             response_groups="product_desc,contributors,product_attrs",
         )
         items = library["items"]
-        if items:
+        if response and items:
             for item in items:
                 if (not item["content_type"] in CONTENT_TYPE_TO_OMIT) and (
                     item["runtime_length_min"] > 0
