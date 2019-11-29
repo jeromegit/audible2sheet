@@ -25,14 +25,14 @@ If you want to save your library to a Google Sheet, you need to follow:
    #. Go to your `Google Sheets <https://docs.google.com/spreadsheets/u/0/>`_
    #. Create a new spreadsheet
    #. Once/if you have a spreadsheet, go to it and note the **spreadsheetId** in the URL in your browser:
-      ``https://docs.google.com/spreadsheets/d/**1iDrHMdst9zVyQJltBUiAvuc7E_bk37Nb0MFOw5jD3zo**/edit#gid=0``
+      https://docs.google.com/spreadsheets/d/**1iDrHMdst9zVyQJltBUiAvuc7E_bk37Nb0MFOw5jD3zo**/edit#gid=0
 
 Authentication
 --------------
 In order to access your Audible library, you need to provide login and password to the script in order to log in on your behalf.
 The first time you do this, you will be challenged with a CAPTCHA image that looks like this:
 
-..image:: captcha_sample.png
+.. image:: captcha_sample.png
 
 and prompted at the command line with:
 
