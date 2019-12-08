@@ -41,7 +41,9 @@ and prompted at the command line with:
 (Note that you might be prompted more than once if you answer incorrectly)
 
 Once the CAPTCHA has been successfully verified, your access is granted and your session is saved in your homedir's .audible_session file unless specified otherwise with -s file_path
+
 Finally, your locale ("us" by default) can be specified if you live outside the US.
+Check out the Localizations section in this page: https://github.com/mkb79/Audible
 
 Once your session has been established you no longer need to specify your email or password until the session expires. It seems to expire after 24 hours at this point.
 

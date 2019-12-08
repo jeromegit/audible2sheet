@@ -14,6 +14,8 @@ import audible
 
 LOCALE_DEFAULT = "us"
 SESSION_FILE_PATH_DEFAULT = os.environ["HOME"] + "/.audible_session"
+AUDIBLE_LIBRARY_FILE_PATH = os.environ["HOME"] + "/.audible_books.txt"
+GSHEET_LIBRARY_FILE_PATH  = os.environ["HOME"] + "/.gsheet_books.txt"
 CONTENT_TYPE_TO_OMIT = ("Speech", "Newspaper / Magazine")
 
 
@@ -227,10 +229,17 @@ If Google credentials aren't specified, it outputs the list of books to the scre
             #        print("Done with getting the library")
             break
     if books:
-        print("|".join(["ASIN", "title", "authors", "length_hh:mm", "purchase_date"]))
-        for book in books:
-            print(book)
-
+        # write to file and output to screen
+        with open(AUDIBLE_LIBRARY_FILE_PATH, 'w') as writer:
+            # Note the header here that cannot change and is used as info key for each book
+            header = "|".join(["ASIN", "TITLE", "AUTHORS", "DURATION", "PURCHASE_DATE"])
+            writer.write(header+"\n")
+            print(header)
+            for book in books:
+                writer.write(book+"\n")
+                print(book)
+        nbooks = len(books)
+        print(f"Saved {nbooks} Audible book in {AUDIBLE_LIBRARY_FILE_PATH}");
 
 if __name__ == "__main__":
     main()
