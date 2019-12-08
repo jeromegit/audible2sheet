@@ -7,17 +7,16 @@ import os
 import time
 import json
 import logging
+import configparser
+from pathlib import Path
 from datetime import datetime, timezone
 from warnings import warn
 import argparse
 import audible
 
-LOCALE_DEFAULT = "us"
-SESSION_FILE_PATH_DEFAULT = os.environ["HOME"] + "/.audible_session"
-AUDIBLE_LIBRARY_FILE_PATH = os.environ["HOME"] + "/.audible_books.txt"
-GSHEET_LIBRARY_FILE_PATH  = os.environ["HOME"] + "/.gsheet_books.txt"
-CONTENT_TYPE_TO_OMIT = ("Speech", "Newspaper / Magazine")
+CONFIG_FILE_PATH = os.environ["HOME"] + "/.audible2sheet.ini"
 
+GSHEET_LIBRARY_FILE_PATH  = os.environ["HOME"] + "/.gsheet_books.txt"
 
 def convert_length_in_minutes_to_hr_min_str(length_minutes):
     """
@@ -161,12 +160,7 @@ Pull Audible library books and output them to the screen or to a Google Sheet.
 If Google credentials aren't specified, it outputs the list of books to the screen/STDOUT "|"-separated
 """,
     )
-    parser.add_argument("-e", "--email", help="Audible email/login")
-    parser.add_argument("-p", "--password", help="Audible password (if not specified, you will be prompted for it)")
-    parser.add_argument("-l", "--locale", help="Locale (region)", default=LOCALE_DEFAULT)
-    parser.add_argument(
-        "-s", "--session", help="Audible session file path", default=SESSION_FILE_PATH_DEFAULT
-    )
+    parser.add_argument("-c", "--cfg_file", help="Configuation file", default=CONFIG_FILE_PATH)
     parser.add_argument(
         "-v",
         "--verbose",
@@ -177,25 +171,52 @@ If Google credentials aren't specified, it outputs the list of books to the scre
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
 
-    if args.email and not args.password:
-        # The email was specified but not the password and so need to prompt the user for the password
-        password = input("Please enter your Audible password: ")
-    else:
-        password = args.password
-
-    client = AudibleClient(args.email, password, args.locale, args.session)
-    if not client.is_logged_in():
-        raise Exception("Failed to connect to Audible")
+    # Get the configration file information
+    cfg_file = args.cfg_file
+    cfg = configparser.ConfigParser()
+    if not os.path.exists(cfg_file):
+        raise Exception(f"The configuration file:{cfg_file} doesn't exist")
         
+    cfg.read(cfg_file)
+
+    # get and create the root dir if it doesn't already exist
+    root_path = cfg.get('general', 'root_path')
+    if not root_path.startswith("/"):
+        root_path = os.environ["HOME"] + "/" + root_path
+    if os.path.exists(root_path):
+        if not os.path.isdir(root_path):
+            warn(f"{root_path} exists but is not a directory")
+    else:
+        # make it visible to the creator of the directory only b/c it contains confidential information
+        os.mkdir(root_path, 0o700)
+
+    # Audible specific data
+    audible_cfg          = cfg['audible_cfg']
+    audible_email        = audible_cfg.get('email')
+    audible_password     = audible_cfg.get('password')
+    audible_locale       = audible_cfg.get('locale', 'us')
+    audible_session_path = audible_cfg.get('session_file_path', 'audible_session.txt')
+    audible_library_path = audible_cfg.get('library_file_path', 'audible_books.txt')
+    audible_min_length   = int(audible_cfg.get('min_length', 5))
+    content_type_to_omit = audible_cfg.get('content_type_to_omit', '').split(",")
+    asins_to_omit        = audible_cfg.get('asins_to_omit', '').split(" ")
+    # Massage the cfg as needed
+    if not audible_session_path.startswith("/"):
+        audible_session_path = root_path + "/" + audible_session_path
+    if not audible_library_path.startswith("/"):
+        audible_library_path = root_path + "/" + audible_library_path
+
+    # Establish a client session with Audible
+    audible_session = AudibleClient(audible_email, audible_password, audible_locale, audible_session_path)
+    if not audible_session.is_logged_in():
+        raise Exception("Failed to connect to Audible")
+
     # get list of books from Audible library
     # since there's no way to know how many books or pages of books, assume that it won't be more that 1000*50
     books = []
     for page in range(1, 1000):
         logging.info("Requesting page {}".format(page))
-        #        else:
-        #            print(".", end=".", file=sys.stderr)
-
-        library, response = client.get(
+        library, response = audible_session.get(
             "library",
             num_results=50,
             page=page,
@@ -204,10 +225,13 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         items = library["items"]
         if response and items:
             for item in items:
-                if (not item["content_type"] in CONTENT_TYPE_TO_OMIT) and (
-                    item["runtime_length_min"] > 0
+                asin = item["asin"]
+                length_min = item["runtime_length_min"]
+                if (
+                    (not item["content_type"] in content_type_to_omit) and 
+                    (not asin                 in asins_to_omit) and
+                    length_min >= audible_min_length
                 ):
-                    asin = item["asin"]
                     title = item["title"]
                     sub_title = item["subtitle"]
                     if sub_title:
@@ -219,7 +243,6 @@ If Google credentials aren't specified, it outputs the list of books to the scre
                     purchase_date_utc = item["purchase_date"]
                     purchase_date = convert_utc_time_to_ccyymmdd(purchase_date_utc)
 
-                    length_min = item["runtime_length_min"]
                     length_hr_min = convert_length_in_minutes_to_hr_min_str(length_min)
 
                     books.append(
@@ -230,7 +253,7 @@ If Google credentials aren't specified, it outputs the list of books to the scre
             break
     if books:
         # write to file and output to screen
-        with open(AUDIBLE_LIBRARY_FILE_PATH, 'w') as writer:
+        with open(audible_library_path, 'w') as writer:
             # Note the header here that cannot change and is used as info key for each book
             header = "|".join(["ASIN", "TITLE", "AUTHORS", "DURATION", "PURCHASE_DATE"])
             writer.write(header+"\n")
@@ -239,7 +262,7 @@ If Google credentials aren't specified, it outputs the list of books to the scre
                 writer.write(book+"\n")
                 print(book)
         nbooks = len(books)
-        print(f"Saved {nbooks} Audible book in {AUDIBLE_LIBRARY_FILE_PATH}");
+        print(f"Saved {nbooks} Audible book in {audible_library_path}");
 
 if __name__ == "__main__":
     main()
