@@ -9,6 +9,7 @@ email = xxx@yyy.com
 password = MyK0mplXPasswd
 # Can be changed but are defaulted to the below values
 session_file_path = audible_session.txt
+# Check out the Localizations section in this page: https://github.com/mkb79/Audible
 locale = us
 library_file_path = audible_books.txt
 # Minimum length (in minutes) to be kept in the library

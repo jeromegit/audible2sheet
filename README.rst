@@ -31,7 +31,8 @@ Configuration
 --------------
 Since there are so many things that you can tweak in terms of configuration, I decided to put all that information in a configuration file instead of passing the configuration as CLI arguments
 
-Unless specified otherwise using -c /some/other/path, the configuration file is expected to be in your homedir (~) as .audiblesheet.ini
+Unless specified otherwise using -c /some/other/path, the configuration file is expected to be in your homedir (~) as .audiblesheet.ini.
+
 I provide a sample of a cfg file in audible2sheet.ini_ORIG that looks like this::
 
     [general]
@@ -45,6 +46,7 @@ I provide a sample of a cfg file in audible2sheet.ini_ORIG that looks like this:
     password = MyK0mplXPasswd
     # Can be changed but are defaulted to the below values
     session_file_path = audible_session.txt
+    # Check out the Localizations section in this page: https://github.com/mkb79/Audible
     locale = us
     library_file_path = audible_books.txt
     # Minimum length (in minutes) to be kept in the library
@@ -70,9 +72,15 @@ I provide a sample of a cfg file in audible2sheet.ini_ORIG that looks like this:
     sheet_name = my_audible_books_generated_by_audible2sheet
     cache_file_path = gsheet_books.txt
 
+So, ``cp audible2sheet.ini_ORIG ~/.audible2sheet.ini; chmod 600 ~/.audible2sheet.ini`` and then at the very least specify your email audible email in the audible_cfg section.
+If you don't want to be prompted each time, also specify your password.
+
+If you are not in the US, change the locale as well. Check out the Localizations section in this page: https://github.com/mkb79/Audible
+
+
 Authentication
 --------------
-In order to access your Audible library, you need to provide login and password to the script in order to log in on your behalf.
+In order to access your Audible library, you need to provide login and password (see configuration above) to the script in order to log in on your behalf.
 The first time you do this, you will be challenged with a CAPTCHA image that looks like this:
 
 .. image:: captcha_sample.png
@@ -83,12 +91,12 @@ and prompted at the command line with:
    
 (Note that you might be prompted more than once if you answer incorrectly)
 
-Once the CAPTCHA has been successfully verified, your access is granted and your session is saved in your homedir's .audible_session file unless specified otherwise with -s file_path
+Once the CAPTCHA has been successfully verified, your access is granted and your session is saved in your ~/.audible2sheet/audible_session.txt file unless specified otherwise in the configuration file.
 
 Finally, your locale ("us" by default) can be specified if you live outside the US.
 Check out the Localizations section in this page: https://github.com/mkb79/Audible
 
-Once your session has been established you no longer need to specify your email or password until the session expires. It seems to expire after 24 hours at this point.
+Once your session has been established you no longer need to specify your email or password until the session expires. It seems to expire after few hours at this point.
 
 
 Usage

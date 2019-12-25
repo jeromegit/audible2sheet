@@ -162,6 +162,12 @@ If Google credentials aren't specified, it outputs the list of books to the scre
     )
     parser.add_argument("-c", "--cfg_file", help="Configuation file", default=CONFIG_FILE_PATH)
     parser.add_argument(
+        "-r",
+        "--print_raw_data",
+        help="Print the raw data as returned by Audible",
+        action="store_true",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         help="Verbose output to show addditonal information",
@@ -212,19 +218,21 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         raise Exception("Failed to connect to Audible")
 
     # get list of books from Audible library
-    # since there's no way to know how many books or pages of books, assume that it won't be more that 1000*50
+    # since there's no way to know how many books or pages of books, assume that it won't be more that 100*500
     books = []
-    for page in range(1, 1000):
+    for page in range(1, 100):
         logging.info("Requesting page {}".format(page))
         library, response = audible_session.get(
             "library",
-            num_results=50,
+            num_results=500,  # get 500 items at a time
             page=page,
             response_groups="product_desc,contributors,product_attrs",
         )
         items = library["items"]
         if response and items:
             for item in items:
+                if args.print_raw_data:
+                    print(item)
                 asin = item["asin"]
                 length_min = item["runtime_length_min"]
                 if (
@@ -257,10 +265,12 @@ If Google credentials aren't specified, it outputs the list of books to the scre
             # Note the header here that cannot change and is used as info key for each book
             header = "|".join(["ASIN", "TITLE", "AUTHORS", "DURATION", "PURCHASE_DATE"])
             writer.write(header+"\n")
-            print(header)
+            if not args.print_raw_data:
+                print(header)
             for book in books:
                 writer.write(book+"\n")
-                print(book)
+                if not args.print_raw_data:
+                    print(book)
         nbooks = len(books)
         print(f"Saved {nbooks} Audible book in {audible_library_path}");
 
