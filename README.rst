@@ -27,6 +27,51 @@ If you want to save your library to a Google Sheet, you need to follow:
    #. Once/if you have a spreadsheet, go to it and note the **spreadsheetId** in the URL in your browser:
       https://docs.google.com/spreadsheets/d/**1iDrHMdst9zVyQJltBUiAvuc7E_bk37Nb0MFOw5jD3zo**/edit#gid=0
 
+Configuration
+--------------
+Since there are so many things that you can tweak in terms of configuration, I decided to put all that information in a configuration file instead of passing the configuration as CLI arguments
+
+Unless specified otherwise using -c /some/other/path, the configuration file is expected to be in your homedir (~) as .audiblesheet.ini
+I provide a sample of a cfg file in audible2sheet.ini_ORIG that looks like this:
+``
+[general]
+root_path = .audible2sheet
+# root_path = /Users/jerome/.audible2sheet
+
+[audible_cfg]
+# MANDATORY
+email = xxx@yyy.com
+# Not mandatory but you will be prompted for it if not specified
+password = MyK0mplXPasswd
+# Can be changed but are defaulted to the below values
+session_file_path = audible_session.txt
+locale = us
+library_file_path = audible_books.txt
+# Minimum length (in minutes) to be kept in the library
+min_length = 1
+# ASINS to omit in case you don't want publically show that you like the Twilight series ;-)
+# (space-separated)
+asins_to_omit =
+# Audible content to ignore (comma-separated)
+# Find available choices here: https://www.audible.com/advsr under Program Type
+# Based on my own list showing that "Product" (Audiobook?) is the most prevalent
+# Episode                 1
+# Lecture                15
+# Newspaper / Magazine    2
+# Performance            12
+# Product               602
+# Radio/TV Program        5
+# Show                    1
+# Speech                  6
+content_type_to_omit = Speech,Newspaper / Magazine
+
+[google_sheet_cfg]
+creds_file_path = audible2googlesheet.json
+sheet_name = my_audible_books_generated_by_audible2sheet
+cache_file_path = gsheet_books.txt
+``
+
+
 Authentication
 --------------
 In order to access your Audible library, you need to provide login and password to the script in order to log in on your behalf.
