@@ -16,8 +16,6 @@ import audible
 
 CONFIG_FILE_PATH = os.environ["HOME"] + "/.audible2sheet.ini"
 
-GSHEET_LIBRARY_FILE_PATH  = os.environ["HOME"] + "/.gsheet_books.txt"
-
 def convert_length_in_minutes_to_hr_min_str(length_minutes):
     """
     Convert minutes into something like 02h03m if given 123.
@@ -157,7 +155,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="""
 Pull Audible library books and output them to the screen or to a Google Sheet.
-If Google credentials aren't specified, it outputs the list of books to the screen/STDOUT "|"-separated
+The list of books to the screen/STDOUT is "|"-separated
 """,
     )
     parser.add_argument("-c", "--cfg_file", help="Configuation file", default=CONFIG_FILE_PATH)
@@ -165,6 +163,12 @@ If Google credentials aren't specified, it outputs the list of books to the scre
         "-r",
         "--print_raw_data",
         help="Print the raw data as returned by Audible",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-g",
+        "--google_sheet_export",
+        help="Export the Audible book list to the Google Sheet specified in the configuration file.",
         action="store_true",
     )
     parser.add_argument(

@@ -79,7 +79,9 @@ If you are not in the US, change the locale as well. Check out the Localizations
 
 
 Authentication
---------------
+==============
+Audible Configuration
+---------------------
 In order to access your Audible library, you need to provide login and password (see configuration above) to the script in order to log in on your behalf.
 The first time you do this, you will be challenged with a CAPTCHA image that looks like this:
 
@@ -99,21 +101,38 @@ Check out the Localizations section in this page: https://github.com/mkb79/Audib
 Once your session has been established you no longer need to specify your email or password until the session expires. It seems to expire after few hours at this point.
 
 
+Google Sheets Configuration
+---------------------------
+
+Follow the instructions here:
+https://pygsheets.readthedocs.io/en/stable/authorization.html
+(More specifically the top of the "Authorizing pygsheets" section)
+
+Then the "Service Account" section which is what is used in this in Audible2sheet:
+https://pygsheets.readthedocs.io/en/stable/authorization.html#service-account
+
+The downloaded .json file must be placed here ``~/.audible2sheet/audible2googlesheet.json`` unless specified otherwise in the configuration file.
+
+
 Usage
 -----
 Just print the list of books to the screen:
 
-``audible2sheet.py -e myemail@company.com [-p MyK0mplXPasswd]``
+``audible2sheet.py``
 
-If you don't specify -p password, you will be prompted for it with:
+If you don't specify your Audible password in the cfg file, you will be prompted for it with:
 
 ``Please enter your Audible password:``
 
-It's actually safer to not specify it at the command line as shell history will reveal it to prying eyes.
-  
+You can redirect it to a file of your choosing
+
+``audible2sheet.py > audible_books.txt``
 
 Notes
 -----
-I'm purposely omitting "books" that have a zero-length and "books" of type "Speech" and "Newspaper / Magazine"
+I'm purposely omitting "books" that have a zero-length and "books" of type "Speech" and "Newspaper / Magazine".
+
+That can be tweaked in the configuration file.
+
 
 ✨🍰✨
