@@ -6,7 +6,7 @@ Script to export the list of books in one's Audible library into a Google Sheet 
 It uses `mkb79's excellent Audible API <https://github.com/mkb79/Audible>`_.
 
 Requirements
-------------
+============
 
 - Python >= 3.6
 - depends on following packages:
@@ -15,20 +15,13 @@ Requirements
   - pygsheets
 
 Installation
-------------
+============
 ``pip install audible2sheet``
 
-If you want to save your library to a Google Sheet, you need to follow:
- #. `Turn on the Google Sheets API <https://developers.google.com/sheets/api/quickstart/python#step_1_turn_on_the>`_.
- #. You need to provide a spreadsheetId:
-   
-   #. Go to your `Google Sheets <https://docs.google.com/spreadsheets/u/0/>`_
-   #. Create a new spreadsheet
-   #. Once/if you have a spreadsheet, go to it and note the **spreadsheetId** in the URL in your browser:
-      https://docs.google.com/spreadsheets/d/**1iDrHMdst9zVyQJltBUiAvuc7E_bk37Nb0MFOw5jD3zo**/edit#gid=0
+Also See Authentication sections
 
 Configuration
---------------
+=============
 Since there are so many things that you can tweak in terms of configuration, I decided to put all that information in a configuration file instead of passing the configuration as CLI arguments
 
 Unless specified otherwise using -c /some/other/path, the configuration file is expected to be in your homedir (~) as .audiblesheet.ini.
@@ -115,7 +108,7 @@ The downloaded .json file must be placed here ``~/.audible2sheet/audible2googles
 
 
 Usage
------
+=====
 Just print the list of books to the screen:
 
 ``audible2sheet.py``
@@ -128,8 +121,25 @@ You can redirect it to a file of your choosing
 
 ``audible2sheet.py > audible_books.txt``
 
+Just print/use the list of books that was previously fetched from Audible (from cache file)
+
+``audible2sheet.py -a``
+
+Create/update your Google Sheet with the list of books from Audible
+
+``audible2sheet.py -g``
+
+Show the files retrieved from Audible in JSON format (useful for debugging)
+
+``audible2sheet.py -r``
+
+Show the help/usage:
+
+``audible2sheet.py -h``
+
+
 Notes
------
+=====
 I'm purposely omitting "books" that have a zero-length and "books" of type "Speech" and "Newspaper / Magazine".
 
 That can be tweaked in the configuration file.

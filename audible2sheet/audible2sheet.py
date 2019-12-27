@@ -1,6 +1,6 @@
+#!/usr/bin/env python3
 """
 Script to export someone's audible library into a Google Sheet.
-
 """
 import sys
 import os
@@ -12,10 +12,87 @@ from pathlib import Path
 from datetime import datetime, timezone
 from warnings import warn
 import argparse
+import csv
 import audible
+import pygsheets
 
-CONFIG_FILE_PATH = os.environ["HOME"] + "/.audible2sheet.ini"
+# Some constants
+CONFIG_FILE_PATH = os.environ['HOME'] + '/.audible2sheet.ini'
+AUDIBLE_FILE_PATH_DEFAULT = 'audible_books.txt'
+GSHEET_FILE_PATH_DEFAULT  = 'gsheet_books.txt'
 
+# Book Class
+class Book:
+    """
+    Book class
+    """
+    FIELD_NAME_ASIN          = 'ASIN'
+    FIELD_NAME_TITLE         = 'TITLE'
+    FIELD_NAME_AUTHORS       = 'AUTHORS'
+    FIELD_NAME_DURATION      = 'DURATION'
+    FIELD_NAME_PURCHASE_DATE = 'PURCHASE_DATE'
+    FIELD_NAMES = [
+        FIELD_NAME_ASIN,
+        FIELD_NAME_TITLE,
+        FIELD_NAME_AUTHORS,
+        FIELD_NAME_DURATION,
+        FIELD_NAME_PURCHASE_DATE,
+    ]
+    UNKNOWN_VALUE            = '???'
+    def __init__(self, asin, title, authors, duration, purchase_date):
+        self.asin            = asin
+        self.title           = title
+        self.authors         = authors
+        self.duration        = duration
+        self.purchase_date   = purchase_date
+
+    @classmethod
+    def book_from_dict(cls, book_dict):
+        """
+        Create a book out of a dictionary of book "fields"
+        """
+        book_params = []
+        # make sure that all required fields are present
+        for field in Book.FIELD_NAMES:
+            if field in book_dict:
+                value = book_dict[field]
+                if not value or value.isspace():
+                    warn(f"Invalid value:{value} associated with field:{field} in book dictionary:{book_dict}")
+                    value = Book.UNKNOWN_VALUE
+            else:
+                warn(f"Can't find field:{field} in book dictionary:{book_dict}")
+                value = Book.UNKNOWN_VALUE
+            book_params.append(value)
+
+        try:
+            book = cls(*book_params)
+            return book
+        except Exception as error:
+            warn(f"Can't create a book with book dictionary:{book_dict} because {error}")
+            return None
+
+    def book_to_dict(self):
+        """
+        Create dictionary of field=value pairs from a book
+        """
+        book_dict = {
+            Book.FIELD_NAME_ASIN:self.asin,
+            Book.FIELD_NAME_TITLE:self.title,
+            Book.FIELD_NAME_AUTHORS:self.authors,
+            Book.FIELD_NAME_DURATION:self.duration,
+            Book.FIELD_NAME_PURCHASE_DATE:self.purchase_date,            
+            }
+                     
+        return book_dict
+
+    def __repr__(self):
+        return '%s(%s)' % (
+            type(self).__name__,
+            ', '.join('%s=%s' % item for item in vars(self).items())
+        )
+
+
+# Useful functions to convert time and date formats
 def convert_length_in_minutes_to_hr_min_str(length_minutes):
     """
     Convert minutes into something like 02h03m if given 123.
@@ -149,72 +226,126 @@ class AudibleClient:
             print("Failed to get data from Audible")
 
 
-def main():
-    """Main function."""
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description="""
-Pull Audible library books and output them to the screen or to a Google Sheet.
-The list of books to the screen/STDOUT is "|"-separated
-""",
-    )
-    parser.add_argument("-c", "--cfg_file", help="Configuation file", default=CONFIG_FILE_PATH)
-    parser.add_argument(
-        "-r",
-        "--print_raw_data",
-        help="Print the raw data as returned by Audible",
-        action="store_true",
-    )
-    parser.add_argument(
-        "-g",
-        "--google_sheet_export",
-        help="Export the Audible book list to the Google Sheet specified in the configuration file.",
-        action="store_true",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        help="Verbose output to show addditonal information",
-        action="store_true",
-    )
-    args = parser.parse_args()
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO)
+def create_books_dict_from_file(file):
+    """
+    Create a list of books dict using ASIN as key from a "|"-separated file
+    """
+    books_dict = dict()
+    with open(file, 'r', newline='') as csv_file:
+        csv_reader = csv.DictReader(csv_file, delimiter='|')
+        for book_dict in csv_reader:
+            book = None
+            if Book.FIELD_NAME_ASIN in book_dict:
+                asin = book_dict[Book.FIELD_NAME_ASIN]
+                if asin and not asin.isspace():
+                    book = Book.book_from_dict(book_dict)
+            if book:
+                books_dict[asin] = book
 
-    # Get the configration file information
-    cfg_file = args.cfg_file
-    cfg = configparser.ConfigParser()
-    if not os.path.exists(cfg_file):
-        raise Exception(f"The configuration file:{cfg_file} doesn't exist")
-        
-    cfg.read(cfg_file)
+    return books_dict
 
-    # get and create the root dir if it doesn't already exist
-    root_path = cfg.get('general', 'root_path')
-    if not root_path.startswith("/"):
-        root_path = os.environ["HOME"] + "/" + root_path
-    if os.path.exists(root_path):
-        if not os.path.isdir(root_path):
-            warn(f"{root_path} exists but is not a directory")
+def get_gs_wks(gs_cfg, root_path):
+    """
+    Get a Google Sheet API handle to get/set worksheet data
+    """
+    # GS cfg data
+    creds_file_path = create_full_path(gs_cfg.get('creds_file_path'), root_path)
+    sheet_name      = gs_cfg.get('sheet_name', 'my_audible_books_generated_by_audible2sheet')
+    gs_email        = gs_cfg.get('email')
+    
+    gc = pygsheets.authorize(service_file=creds_file_path)
+    try: 
+        sheet = gc.open(sheet_name)
+    except pygsheets.SpreadsheetNotFound as error:
+        # Can't find it and so create it
+        res = gc.sheet.create(sheet_name)
+        sheet_id = res['spreadsheetId']
+        sheet = gc.open_by_key(sheet_id)
+        print(f"Created spreadsheet with id:{sheet.id} and url:{sheet.url}")
+
+        # Share with self to allow to write to it
+        sheet.share(gs_email, role='writer', type='user')
+
+        # Share to all for reading
+        sheet.share('', role='reader', type='anyone')
+    wks = sheet.sheet1
+
+    return wks
+
+def get_gs_books_and_save_to_file(wks, gs_library_path):
+    """
+    Get the data from the GoogleSheet or create the sheet if it doesn't already exist
+    Return the list of cols in the header
+    """
+    gs_rows = wks.get_all_values(include_tailing_empty_rows=False)
+
+    gs_header_cols = gs_rows[0]
+    if all(s == '' or s.isspace() for s in gs_header_cols):
+        # There's no header yet and so initialize it with some default including freezing the header
+        gs_header_cols = Book.FIELD_NAMES
+        wks.insert_rows(0, values=[gs_header_cols])
+        wks.frozen_rows = 1
+
+    with open(gs_library_path, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file, delimiter='|')
+        csv_writer.writerows(gs_rows)
+    print(f"Saved {len(gs_rows)} books in {gs_library_path}")
+
+    return gs_header_cols
+
+def get_new_book_rows(audible_books, gs_books, gs_header_cols):
+    """
+    Go over all the Audible books to see if any new were added vs the GS list of books
+    The ASIN is used as a key to map books in Audible and GS
+    The user might have added new columns and suffled in the order of the columns; we should respect that
+    """
+    new_book_rows = []
+    for asin, audible_book in audible_books.items():
+        if not asin in gs_books:
+            book_dict = audible_book.book_to_dict()
+            new_row_cols = []
+            for gs_field in gs_header_cols:
+                if gs_field in book_dict:
+                    field_value = book_dict[gs_field]
+                    # Special case with ASIN where leading zeroes would be stripped otherwise
+                    if field_value.startswith("0"):
+                        # prefix with a leading ' to tell GS not to strip the leasing zeros
+                        field_value = "'"+field_value
+                else:
+                    field_value = ""
+                new_row_cols.append(field_value)
+            new_book_rows.append(new_row_cols)
+            print(f"ADD: {audible_book}")
+
+    return new_book_rows
+
+def insert_new_book_row_to_gs_wks(wks, new_book_rows):
+    print(f"Need to insert {len(new_book_rows)} new books/rows...")
+    wks.insert_rows(1, number=len(new_book_rows), values=new_book_rows)
+
+def create_full_path(path, root_path):
+    """ 
+    check if a path is absolute
+    if absolute return as-is, otherwise return root_path/path
+    """
+    if os.path.isabs(path):
+        return path
     else:
-        # make it visible to the creator of the directory only b/c it contains confidential information
-        os.mkdir(root_path, 0o700)
-
-    # Audible specific data
-    audible_cfg          = cfg['audible_cfg']
+        return root_path + "/" + path
+    
+def get_audible_books_and_save_to_file(audible_cfg, root_path, print_raw_data):
+    """
+    Use the Audible API to get the list of all books from Audible and save the list 
+    """
+    # Audible cfg data
     audible_email        = audible_cfg.get('email')
     audible_password     = audible_cfg.get('password')
     audible_locale       = audible_cfg.get('locale', 'us')
-    audible_session_path = audible_cfg.get('session_file_path', 'audible_session.txt')
-    audible_library_path = audible_cfg.get('library_file_path', 'audible_books.txt')
+    audible_session_path = create_full_path(audible_cfg.get('session_file_path', 'audible_session.txt'), root_path)
+    audible_library_path = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
     audible_min_length   = int(audible_cfg.get('min_length', 5))
     content_type_to_omit = audible_cfg.get('content_type_to_omit', '').split(",")
     asins_to_omit        = audible_cfg.get('asins_to_omit', '').split(" ")
-    # Massage the cfg as needed
-    if not audible_session_path.startswith("/"):
-        audible_session_path = root_path + "/" + audible_session_path
-    if not audible_library_path.startswith("/"):
-        audible_library_path = root_path + "/" + audible_library_path
 
     # Establish a client session with Audible
     audible_session = AudibleClient(audible_email, audible_password, audible_locale, audible_session_path)
@@ -235,7 +366,7 @@ The list of books to the screen/STDOUT is "|"-separated
         items = library["items"]
         if response and items:
             for item in items:
-                if args.print_raw_data:
+                if print_raw_data:
                     print(item)
                 asin = item["asin"]
                 length_min = item["runtime_length_min"]
@@ -269,14 +400,97 @@ The list of books to the screen/STDOUT is "|"-separated
             # Note the header here that cannot change and is used as info key for each book
             header = "|".join(["ASIN", "TITLE", "AUTHORS", "DURATION", "PURCHASE_DATE"])
             writer.write(header+"\n")
-            if not args.print_raw_data:
-                print(header)
             for book in books:
                 writer.write(book+"\n")
-                if not args.print_raw_data:
-                    print(book)
         nbooks = len(books)
         print(f"Saved {nbooks} Audible book in {audible_library_path}");
+
+# --------------------------------------------------------------------------------
+def main():
+    """Main function."""
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="""
+Pull Audible library books and output them to the screen or to a Google Sheet.
+The list of books to the screen/STDOUT is "|"-separated
+""",
+    )
+    parser.add_argument("-c", "--cfg_file", help="Configuation file", default=CONFIG_FILE_PATH)
+    parser.add_argument(
+        "-r",
+        "--print_raw_data",
+        help="Print the raw data as returned by Audible",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-g",
+        "--google_sheet_export",
+        help="Export the Audible book list to the Google Sheet specified in the configuration file.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-a",
+        "--use_audible_cache_file",
+        help="Use Audible cache file instead of requesting the data",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Verbose output to show addditonal information",
+        action="store_true",
+    )
+    args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    # Get the configration file information
+    cfg_file = args.cfg_file
+    cfg = configparser.ConfigParser()
+    if not os.path.exists(cfg_file):
+        raise Exception(f"The configuration file:{cfg_file} doesn't exist")
+        
+    cfg.read(cfg_file)
+
+    # get and create the root dir if it doesn't already exist
+    root_path = cfg.get('general', 'root_path')
+    if not root_path.startswith("/"):
+        root_path = os.environ["HOME"] + "/" + root_path
+    if os.path.exists(root_path):
+        if not os.path.isdir(root_path):
+            warn(f"{root_path} exists but is not a directory")
+    else:
+        # make it visible to the creator of the directory only b/c it contains confidential information
+        os.mkdir(root_path, 0o700)
+
+    # Get/save/print Audible books
+    audible_cfg = cfg['audible_cfg']
+    if not args.use_audible_cache_file or args.print_raw_data:
+        get_audible_books_and_save_to_file(audible_cfg, root_path, args.print_raw_data)
+    if not args.print_raw_data:
+        audible_library_path = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
+        with open(audible_library_path, 'r') as f:
+            print(f.read())
+
+    # Get/save GoogleSheet (GS) books
+    if args.google_sheet_export:
+        gs_cfg = cfg['google_sheet_cfg']
+        gs_wks = get_gs_wks(gs_cfg, root_path)
+        gs_library_path = create_full_path(gs_cfg.get('library_file_path', GSHEET_FILE_PATH_DEFAULT), root_path)
+        gs_header_cols = get_gs_books_and_save_to_file(gs_wks, gs_library_path)
+
+        # Load lists of books from files into dictionaries for an easy 1x1 comparison based on ASIN
+        audible_books = create_books_dict_from_file(audible_library_path)
+        gs_books      = create_books_dict_from_file(gs_library_path)
+
+        # Create new rows based on the delta between audible and gs and the header columns
+        new_book_rows = get_new_book_rows(audible_books, gs_books, gs_header_cols)
+
+        # insert
+        if len(new_book_rows):
+            insert_new_book_row_to_gs_wks(gs_wks, new_book_rows)
+        else:
+            print("No new books found")
 
 if __name__ == "__main__":
     main()
