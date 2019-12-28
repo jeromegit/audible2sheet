@@ -1,9 +1,18 @@
 audible2sheet: your Audible library in a Google sheet!
 ======================================================
 
-Script to export the list of books in one's Audible library into a Google Sheet document
+Script to export list of Audible books into a Google Sheet document
 
 It uses `mkb79's excellent Audible API <https://github.com/mkb79/Audible>`_.
+
+Sample
+======
+
+Here's a `sample <https://docs.google.com/spreadsheets/d/1HC0J6K5D5oDrI5e6LyX_o5HbZwVJPqOwgz3lsSf1OJ4/edit#gid=0>`_.
+
+(with screenshot)
+
+.. image:: my_audible2sheet_sample_screenshot.png
 
 Requirements
 ============
@@ -17,7 +26,9 @@ Requirements
 Installation
 ============
 In the future....
+
 ``pip install audible2sheet``
+
 But for now use git to clone/download the files
 
 Also See Authentication sections
