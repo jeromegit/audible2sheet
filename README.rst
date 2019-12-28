@@ -1,7 +1,10 @@
 audible2sheet: your Audible library in a Google sheet!
 ======================================================
 
-Script to export list of Audible books into a Google Sheet document
+Script to export list of Audible books into a Google Sheet document and update that Google Sheet as new books are added to your Audible library.
+
+It also allows you to print your Audible library to the screen using the default fields of interest (ASIN, TITLE, AUTHORS, DURATION, PURCHASE_DATE) or any of the many fields provided by Audible (currently 80 fields, available using the -l option)).
+
 
 It uses `mkb79's excellent Audible API <https://github.com/mkb79/Audible>`_.
 
@@ -156,14 +159,54 @@ Create/update your Google Sheet with the list of books from Audible
 
 ``audible2sheet.py -g``
 
-Show the files retrieved from Audible in JSON format (useful for debugging)
+Show the books  retrieved from Audible in JSON format (useful for debugging)
 
 ``audible2sheet.py -r``
+
+Show the books retrieved from Audible in |-separated format
+
+``audible2sheet.py -R "asin title authors narrators"``
+
+Show all the fields available from Audible
+
+``audible2sheet.py -l``
 
 Show the help/usage:
 
 ``audible2sheet.py -h``
 
+Currently::
+
+  usage: audible2sheet.py [-h] [-c CFG_FILE] [-r] [-R PRINT_SPECIFIC_RAW_DATA]
+                        [-l] [-g] [-a] [-A] [-v]
+
+  Pull Audible library books and output them to the screen or to a Google Sheet.
+  The list of books to the screen/STDOUT is "|"-separated
+
+  optional arguments:
+    -h, --help            show this help message and exit
+    -c CFG_FILE, --cfg_file CFG_FILE
+                          Configuation file (default:
+                          /Users/jerome/.audible2sheet.ini)
+    -r, --print_raw_data  Print the raw data as returned by Audible (default:
+                          False)
+    -R PRINT_SPECIFIC_RAW_DATA, --print_specific_raw_data PRINT_SPECIFIC_RAW_DATA
+                          Print the specified raw data column (space-separated)
+                          as returned by Audible (default: None)
+    -l, --list_raw_data_fields
+                          List all the raw data fields as returned by Audible
+                          (default: False)
+    -g, --google_sheet_export
+                          Export the Audible book list to the Google Sheet
+                          specified in the configuration file. (default: False)
+    -a, --use_audible_cache_file
+                          Use Audible cache file instead of requesting the data
+                          (default: False)
+    -A, --use_audible_raw_cache_file
+                          Use Audible raw cache file instead of requesting the
+                          data (default: False)
+    -v, --verbose         Verbose output to show addditonal information
+                          (default: False)
 
 Notes
 =====

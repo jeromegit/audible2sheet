@@ -424,7 +424,7 @@ def print_raw_data_fields_list(raw_library_file_path):
         print(field)
 
         
-def print_file_as_is(file):
+def print_file_as_is(file_to_print):
     with open(file_to_print, 'r') as file:
         print(file.read())
 
@@ -470,7 +470,6 @@ The list of books to the screen/STDOUT is "|"-separated
         "-R",
         "--print_specific_raw_data",
         help="Print the specified raw data column (space-separated) as returned by Audible",
-        default="asin title",
     )
     parser.add_argument(
         "-l",
