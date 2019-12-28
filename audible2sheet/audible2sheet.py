@@ -15,10 +15,12 @@ import argparse
 import csv
 import audible
 import pygsheets
+from collections import defaultdict
 
 # Some constants
 CONFIG_FILE_PATH = os.environ['HOME'] + '/.audible2sheet.ini'
 AUDIBLE_FILE_PATH_DEFAULT = 'audible_books.txt'
+AUDIBLE_RAW_FILE_PATH_DEFAULT = 'audible_raw_books.txt'
 GSHEET_FILE_PATH_DEFAULT  = 'gsheet_books.txt'
 
 # Book Class
@@ -171,7 +173,7 @@ class AudibleClient:
         try:
             self._restore_from_session_file()
         except Exception as msg:  # pylint: disable=W0702
-            print(f"Can't log into Audible: {msg}")
+            print(f"Can't log into Audible: {msg}", file=sys.stderr)
 
             # If that doesn't work, try logging in with credentials
             self._create_with_credentials()
@@ -205,7 +207,7 @@ class AudibleClient:
                     self._email, self._password, locale=self._locale
                 )
             except Exception as msg:
-                print(f"Can't log into Audible using credentials: {msg}")
+                print(f"Can't log into Audible using credentials: {msg}", file=sys.stderr)
                 raise
         else:
             raise Exception("Both email and password must be specified")
@@ -223,7 +225,7 @@ class AudibleClient:
         try:
             return self._client.get(*args, **kwarg)
         except:
-            print("Failed to get data from Audible")
+            print("Failed to get data from Audible", file=sys.stderr)
 
 
 def create_books_dict_from_file(file):
@@ -243,6 +245,7 @@ def create_books_dict_from_file(file):
                 books_dict[asin] = book
 
     return books_dict
+
 
 def get_gs_wks(gs_cfg, root_path):
     """
@@ -272,6 +275,7 @@ def get_gs_wks(gs_cfg, root_path):
 
     return wks
 
+
 def get_gs_books_and_save_to_file(wks, gs_library_path):
     """
     Get the data from the GoogleSheet or create the sheet if it doesn't already exist
@@ -289,9 +293,10 @@ def get_gs_books_and_save_to_file(wks, gs_library_path):
     with open(gs_library_path, 'w', newline='') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter='|')
         csv_writer.writerows(gs_rows)
-    print(f"Saved {len(gs_rows)} books in {gs_library_path}")
+    print(f"Saved {len(gs_rows)} books in {gs_library_path}", file=sys.stderr)
 
     return gs_header_cols
+
 
 def get_new_book_rows(audible_books, gs_books, gs_header_cols):
     """
@@ -315,14 +320,16 @@ def get_new_book_rows(audible_books, gs_books, gs_header_cols):
                     field_value = ""
                 new_row_cols.append(field_value)
             new_book_rows.append(new_row_cols)
-            print(f"ADD: {audible_book}")
+            print(f"ADD: {audible_book}", file=sys.stderr)
 
     return new_book_rows
 
+
 def insert_new_book_row_to_gs_wks(wks, new_book_rows):
-    print(f"Need to insert {len(new_book_rows)} new books/rows...")
+    print(f"Need to insert {len(new_book_rows)} new books/rows...", file=sys.stderr)
     wks.insert_rows(1, number=len(new_book_rows), values=new_book_rows)
 
+    
 def create_full_path(path, root_path):
     """ 
     check if a path is absolute
@@ -333,19 +340,21 @@ def create_full_path(path, root_path):
     else:
         return root_path + "/" + path
     
-def get_audible_books_and_save_to_file(audible_cfg, root_path, print_raw_data):
+
+def get_audible_books_and_save_to_file(audible_cfg, root_path):
     """
     Use the Audible API to get the list of all books from Audible and save the list 
     """
     # Audible cfg data
-    audible_email        = audible_cfg.get('email')
-    audible_password     = audible_cfg.get('password')
-    audible_locale       = audible_cfg.get('locale', 'us')
-    audible_session_path = create_full_path(audible_cfg.get('session_file_path', 'audible_session.txt'), root_path)
-    audible_library_path = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
-    audible_min_length   = int(audible_cfg.get('min_length', 5))
-    content_type_to_omit = audible_cfg.get('content_type_to_omit', '').split(",")
-    asins_to_omit        = audible_cfg.get('asins_to_omit', '').split(" ")
+    audible_email            = audible_cfg.get('email')
+    audible_password         = audible_cfg.get('password')
+    audible_locale           = audible_cfg.get('locale', 'us')
+    audible_session_path     = create_full_path(audible_cfg.get('session_file_path', 'audible_session.txt'), root_path)
+    audible_library_path     = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
+    audible_raw_library_path = create_full_path(audible_cfg.get('raw_library_file_path', AUDIBLE_RAW_FILE_PATH_DEFAULT), root_path)
+    audible_min_length       = int(audible_cfg.get('min_length', 5))
+    content_type_to_omit     = audible_cfg.get('content_type_to_omit', '').split(",")
+    asins_to_omit            = audible_cfg.get('asins_to_omit', '').split(" ")
 
     # Establish a client session with Audible
     audible_session = AudibleClient(audible_email, audible_password, audible_locale, audible_session_path)
@@ -355,56 +364,91 @@ def get_audible_books_and_save_to_file(audible_cfg, root_path, print_raw_data):
     # get list of books from Audible library
     # since there's no way to know how many books or pages of books, assume that it won't be more that 100*500
     books = []
-    for page in range(1, 100):
-        logging.info("Requesting page {}".format(page))
-        library, response = audible_session.get(
-            "library",
-            num_results=500,  # get 500 items at a time
-            page=page,
-            response_groups="product_desc,contributors,product_attrs",
-        )
-        items = library["items"]
-        if response and items:
-            for item in items:
-                if print_raw_data:
-                    print(item)
-                asin = item["asin"]
-                length_min = item["runtime_length_min"]
-                if (
-                    (not item["content_type"] in content_type_to_omit) and 
-                    (not asin                 in asins_to_omit) and
-                    length_min >= audible_min_length
-                ):
-                    title = item["title"]
-                    sub_title = item["subtitle"]
-                    if sub_title:
-                        title = title + ": " + sub_title
+    with open(audible_raw_library_path, 'w') as raw_writer:
+        for page in range(1, 100):
+            print(f"Requesting Audible page #{page}...", file=sys.stderr)
+            library, response = audible_session.get(
+                "library",
+                num_results=500,  # get 500 items at a time
+                page=page,
+                response_groups="product_desc,contributors,product_attrs",
+            )
+            items = library["items"]
+            if response and items:
+                for item in items:
+                    raw_writer.write(json.dumps(item)+"\n")
+                    asin = item["asin"]
+                    length_min = item["runtime_length_min"]
+                    if (
+                            (not item["content_type"] in content_type_to_omit) and 
+                            (not asin                 in asins_to_omit) and
+                            length_min >= audible_min_length
+                    ):
+                        title = item["title"]
+                        sub_title = item["subtitle"]
+                        if sub_title:
+                            title = title + ": " + sub_title
 
-                    all_authors = item["authors"]
-                    authors = extract_authors_from_json_list_sting(all_authors)
+                        all_authors = item["authors"]
+                        authors = extract_authors_from_json_list_sting(all_authors)
 
-                    purchase_date_utc = item["purchase_date"]
-                    purchase_date = convert_utc_time_to_ccyymmdd(purchase_date_utc)
+                        purchase_date_utc = item["purchase_date"]
+                        purchase_date = convert_utc_time_to_ccyymmdd(purchase_date_utc)
 
-                    length_hr_min = convert_length_in_minutes_to_hr_min_str(length_min)
+                        length_hr_min = convert_length_in_minutes_to_hr_min_str(length_min)
 
-                    books.append(
-                        "|".join([asin, title, authors, length_hr_min, purchase_date])
-                    )
-        else:
-            #        print("Done with getting the library")
-            break
+                        books.append(
+                            "|".join([asin, title, authors, length_hr_min, purchase_date])
+                        )
+            else:
+                #        print("Done with getting the library")
+                break
     if books:
-        # write to file and output to screen
+        # write to cache file
         with open(audible_library_path, 'w') as writer:
             # Note the header here that cannot change and is used as info key for each book
-            header = "|".join(["ASIN", "TITLE", "AUTHORS", "DURATION", "PURCHASE_DATE"])
+            header = "|".join(Book.FIELD_NAMES)
             writer.write(header+"\n")
             for book in books:
                 writer.write(book+"\n")
-        nbooks = len(books)
-        print(f"Saved {nbooks} Audible book in {audible_library_path}");
+        print(f"Saved {len(books)} Audible book in {audible_library_path}", file=sys.stderr);
 
+def print_raw_data_fields_list(raw_library_file_path):
+    fields = defaultdict(int) 
+    with open(raw_library_file_path, 'r') as raw_file:
+        for json_raw_book in raw_file:
+            book_as_dict = (json.loads(json_raw_book))
+            for field in book_as_dict.keys():
+                fields[field] += 1
+    for field in sorted(fields):
+        print(field)
+
+        
+def print_file_as_is(file):
+    with open(file_to_print, 'r') as file:
+        print(file.read())
+
+        
+def print_specified_field_from_raw_file(raw_file_path, specified_fields):
+    header = "|".join(specified_fields)
+    print(header)
+    with open(raw_file_path, 'r') as raw_file:
+        for json_raw_book in raw_file:
+            book_as_dict = (json.loads(json_raw_book))
+            columns = []
+            for field in specified_fields:
+                if field in book_as_dict and book_as_dict[field] is not None:
+                    if field == 'authors' or field == 'narrators':
+                        # Special case of authors and narrators which ate actually json lists and not simple strings
+                        col_value = extract_authors_from_json_list_sting(book_as_dict[field])
+                    else:
+                        col_value = str(book_as_dict[field])
+                else:
+                    col_value = '???'
+                columns.append(col_value)
+            print("|".join(columns))
+                
+    
 # --------------------------------------------------------------------------------
 def main():
     """Main function."""
@@ -423,6 +467,18 @@ The list of books to the screen/STDOUT is "|"-separated
         action="store_true",
     )
     parser.add_argument(
+        "-R",
+        "--print_specific_raw_data",
+        help="Print the specified raw data column (space-separated) as returned by Audible",
+        default="asin title",
+    )
+    parser.add_argument(
+        "-l",
+        "--list_raw_data_fields",
+        help="List all the raw data fields as returned by Audible",
+        action="store_true",
+    )
+    parser.add_argument(
         "-g",
         "--google_sheet_export",
         help="Export the Audible book list to the Google Sheet specified in the configuration file.",
@@ -432,6 +488,12 @@ The list of books to the screen/STDOUT is "|"-separated
         "-a",
         "--use_audible_cache_file",
         help="Use Audible cache file instead of requesting the data",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-A",
+        "--use_audible_raw_cache_file",
+        help="Use Audible raw cache file instead of requesting the data",
         action="store_true",
     )
     parser.add_argument(
@@ -449,7 +511,7 @@ The list of books to the screen/STDOUT is "|"-separated
     cfg = configparser.ConfigParser()
     if not os.path.exists(cfg_file):
         raise Exception(f"The configuration file:{cfg_file} doesn't exist")
-        
+    
     cfg.read(cfg_file)
 
     # get and create the root dir if it doesn't already exist
@@ -465,12 +527,22 @@ The list of books to the screen/STDOUT is "|"-separated
 
     # Get/save/print Audible books
     audible_cfg = cfg['audible_cfg']
-    if not args.use_audible_cache_file or args.print_raw_data:
-        get_audible_books_and_save_to_file(audible_cfg, root_path, args.print_raw_data)
-    if not args.print_raw_data:
-        audible_library_path = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
-        with open(audible_library_path, 'r') as f:
-            print(f.read())
+    if not (args.use_audible_cache_file or args.use_audible_raw_cache_file):
+        get_audible_books_and_save_to_file(audible_cfg, root_path)
+    if args.list_raw_data_fields:
+        raw_library_file_path = create_full_path(audible_cfg.get('raw_library_file_path', AUDIBLE_RAW_FILE_PATH_DEFAULT), root_path)
+        print_raw_data_fields_list(raw_library_file_path)
+    else:
+        if args.print_raw_data or args.print_specific_raw_data:
+            raw_library_file_path = create_full_path(audible_cfg.get('raw_library_file_path', AUDIBLE_RAW_FILE_PATH_DEFAULT), root_path)
+            if args.print_raw_data:
+                print_file_as_is(raw_library_file_path)
+            else:
+                specified_fields = args.print_specific_raw_data.split(" ")
+                print_specified_field_from_raw_file(raw_library_file_path, specified_fields)
+        else:
+            library_file_path = create_full_path(audible_cfg.get('library_file_path',     AUDIBLE_FILE_PATH_DEFAULT),     root_path)
+            print_file_as_is(library_file_path)
 
     # Get/save GoogleSheet (GS) books
     if args.google_sheet_export:
@@ -490,7 +562,7 @@ The list of books to the screen/STDOUT is "|"-separated
         if len(new_book_rows):
             insert_new_book_row_to_gs_wks(gs_wks, new_book_rows)
         else:
-            print("No new books found")
+            print("No new books found", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
