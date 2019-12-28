@@ -16,7 +16,9 @@ Requirements
 
 Installation
 ============
+In the future....
 ``pip install audible2sheet``
+But for now use git to clone/download the files
 
 Also See Authentication sections
 
@@ -64,6 +66,8 @@ I provide a sample of a cfg file in audible2sheet.ini_ORIG that looks like this:
     creds_file_path = audible2googlesheet.json
     sheet_name = my_audible_books_generated_by_audible2sheet
     cache_file_path = gsheet_books.txt
+    # The below email must be a valid email to be used by Google Sheet to grant you read/write access to the sheet
+    email = !!!change_me@gmail.com!!!
 
 So, ``cp audible2sheet.ini_ORIG ~/.audible2sheet.ini; chmod 600 ~/.audible2sheet.ini`` and then at the very least specify your email audible email in the audible_cfg section.
 If you don't want to be prompted each time, also specify your password.
@@ -106,6 +110,18 @@ https://pygsheets.readthedocs.io/en/stable/authorization.html#service-account
 
 The downloaded .json file must be placed here ``~/.audible2sheet/audible2googlesheet.json`` unless specified otherwise in the configuration file.
 
+Note that the standard columns that audible2sheet creates for you are:
+    * ASIN
+    * TITLE
+    * AUTHORS
+    * DURATION
+    * PURCHASE_DATE
+
+Feel free to remove any of them except **ASIN** which is used as a key to determine if any book is missing in the sheet.
+
+You can also shuffle the order of the columns as long the column header names remain the same as above.
+
+You can also add new columns that you want to manage yourself like whether you read the book and when, your rating of the book, etc...
 
 Usage
 =====

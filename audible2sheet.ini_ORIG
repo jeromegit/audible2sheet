@@ -34,4 +34,6 @@ content_type_to_omit = Speech,Newspaper / Magazine
 creds_file_path = audible2googlesheet.json
 sheet_name = my_audible_books_generated_by_audible2sheet
 cache_file_path = gsheet_books.txt
+# The below email must be a valid email to be used by Google Sheet to grant you read/write access to the sheet
+email = !!!change_me@gmail.com!!!
 # mapping of header?
