@@ -413,15 +413,33 @@ def get_audible_books_and_save_to_file(audible_cfg, root_path):
                 writer.write(book+"\n")
         print(f"Saved {len(books)} Audible book in {audible_library_path}", file=sys.stderr);
 
-def print_raw_data_fields_list(raw_library_file_path):
-    fields = defaultdict(int) 
+def print_raw_data_fields_list(raw_library_file_path, specific_field):
+    fields = defaultdict(dict) 
     with open(raw_library_file_path, 'r') as raw_file:
         for json_raw_book in raw_file:
             book_as_dict = (json.loads(json_raw_book))
             for field in book_as_dict.keys():
-                fields[field] += 1
-    for field in sorted(fields):
-        print(field)
+                value = str(book_as_dict[field])
+                if len(fields[field]) == 0 or value not in fields[field]:
+                    fields[field][value] = 1
+                else:
+                    fields[field][value] += 1
+
+    if specific_field == "ALL":
+        for field in sorted(fields):
+            values = fields[field]
+            n_values = len(values)
+            if n_values == 1:
+                sole_key = list(values.keys())[0]
+                msg = f"Always {sole_key}"
+            else:
+                msg = f"{n_values} different values"
+            print(f"{field} ({msg})")
+    else:
+        values = fields[specific_field]
+        for value, count in values.items():
+            print(f"{value} ({count})")
+            
 
         
 def print_file_as_is(file_to_print):
@@ -478,6 +496,12 @@ The list of books to the screen/STDOUT is "|"-separated
         action="store_true",
     )
     parser.add_argument(
+        "-L",
+        "--list_values_of_specified_field",
+        help="List all the values associated with the raw data specified field",
+        default="ALL",
+    )
+    parser.add_argument(
         "-g",
         "--google_sheet_export",
         help="Export the Audible book list to the Google Sheet specified in the configuration file.",
@@ -528,9 +552,9 @@ The list of books to the screen/STDOUT is "|"-separated
     audible_cfg = cfg['audible_cfg']
     if not (args.use_audible_cache_file or args.use_audible_raw_cache_file):
         get_audible_books_and_save_to_file(audible_cfg, root_path)
-    if args.list_raw_data_fields:
+    if args.list_raw_data_fields or args.list_values_of_specified_field:
         raw_library_file_path = create_full_path(audible_cfg.get('raw_library_file_path', AUDIBLE_RAW_FILE_PATH_DEFAULT), root_path)
-        print_raw_data_fields_list(raw_library_file_path)
+        print_raw_data_fields_list(raw_library_file_path, args.list_values_of_specified_field)
     else:
         if args.print_raw_data or args.print_specific_raw_data:
             raw_library_file_path = create_full_path(audible_cfg.get('raw_library_file_path', AUDIBLE_RAW_FILE_PATH_DEFAULT), root_path)
