@@ -129,7 +129,7 @@ def convert_utc_time_to_ccyymmdd(utc_time):
     return ccyymmdd
 
 
-def extract_authors_from_json_list_sting(json_list_str):
+def extract_authors_from_json_data(json_data):
     """
     Audible provides a list of authors which might includes translators, foreword, adaptors and other contributors.
 
@@ -138,8 +138,8 @@ def extract_authors_from_json_list_sting(json_list_str):
         [{'asin': 'B001H6UJO8', 'name': 'Andreas Eschbach'}, {'asin': None, 'name': 'Samuel Willcocks (translator)'}]
     Only keep the true authors and return them as a nice CSV string
     """
-    if json_list_str:
-        all_authors = json_list_str
+    if json_data:
+        all_authors = json_data
         real_authors = []
         for author in all_authors:
             name = author["name"]
@@ -150,6 +150,57 @@ def extract_authors_from_json_list_sting(json_list_str):
         authors = "UNKNOWN AUTHOR"
 
     return authors
+
+def extract_series_from_json_data(json_data):
+    """
+    Here's an example of thw way Audible provides that information and all we need is the title
+    [{'asin': 'B006K1LXAE', 'sequence': '3', 'title': 'The Dark Tower', 'url': '/pd/The-Dark-Tower-Audiobook/B006K1LXAE'}] (1)
+    """
+    if json_data and len(json_data) > 0 and 'title' in json_data[0]:
+        series = json_data[0]['title']
+    else:
+        series = None
+
+    return series
+
+
+def extract_categories_from_json_data(json_data):
+    """
+    Audible provides a list of cateories which takes the form of "category_ladder"
+    Example:
+    [{"date_product_available_in_category": None, "ladder": [
+       {"category_presentation": None, "children": None, "default_offline_storage_days_count": None, "default_offline_storage_item_count": None, "description": None, "header": None, "id": "2226658011", "images": None, "initial_download_days_count": None, "initial_download_item_count": None, "is_new": None, "localized_name": None, "name": "Sci-Fi & Fantasy", ...}
+        {"category_presentation": None, "children": None, "default_offline_storage_days_count": None, "default_offline_storage_item_count": None, "description": None, "header": None, "id": "2226781011", "images": None, "initial_download_days_count": None, "initial_download_item_count": None, "is_new": None, "localized_name": None, "name": "Sci-Fi: Contemporary", ...}
+
+    Extract the ladder as category / sub-category / sub-sub-category, etc...
+    """
+    if json_data and len(json_data) > 0:
+        real_categories = []
+        for level in json_data:
+            if 'ladder' in level:
+                category_ladder = level['ladder']
+                for category in category_ladder:
+                    name = category["name"]
+                    real_categories.append(name)
+                categories = " / ".join(real_categories)
+                break   # ONLY keep the top of the ladder
+    else:
+        categories = "UNKNOWN CATEGORY"
+
+    return categories
+
+def extract_correct_information_from_field_data(field, data):
+    if field == 'authors' or field == 'narrators':
+        information = extract_authors_from_json_data(data)
+    elif field == 'category_ladders':
+        information = extract_categories_from_json_data(data)
+    elif field == 'series':
+        information = extract_series_from_json_data(data)
+    else:
+        # leave as-is
+        information = str(data)
+
+    return information
 
 
 class AudibleClient:
@@ -271,7 +322,7 @@ def get_gs_wks(gs_cfg, root_path):
 
         # Share to all for reading
         sheet.share('', role='reader', type='anyone')
-    wks = sheet.sheet1
+        wks = sheet.sheet1
 
     return wks
 
@@ -318,9 +369,9 @@ def get_new_book_rows(audible_books, gs_books, gs_header_cols):
                         field_value = "'"+field_value
                 else:
                     field_value = ""
-                new_row_cols.append(field_value)
-            new_book_rows.append(new_row_cols)
-            print(f"ADD: {audible_book}", file=sys.stderr)
+                    new_row_cols.append(field_value)
+                    new_book_rows.append(new_row_cols)
+                    print(f"ADD: {audible_book}", file=sys.stderr)
 
     return new_book_rows
 
@@ -371,7 +422,7 @@ def get_audible_books_and_save_to_file(audible_cfg, root_path):
                 "library",
                 num_results=500,  # get 500 items at a time
                 page=page,
-                response_groups="product_desc,contributors,product_attrs",
+                response_groups="product_desc,contributors,product_attrs,category_ladders,series",
             )
             items = library["items"]
             if response and items:
@@ -390,7 +441,7 @@ def get_audible_books_and_save_to_file(audible_cfg, root_path):
                             title = title + ": " + sub_title
 
                         all_authors = item["authors"]
-                        authors = extract_authors_from_json_list_sting(all_authors)
+                        authors = extract_authors_from_json_data(all_authors)
 
                         purchase_date_utc = item["purchase_date"]
                         purchase_date = convert_utc_time_to_ccyymmdd(purchase_date_utc)
@@ -419,13 +470,13 @@ def print_raw_data_fields_list(raw_library_file_path, specific_field):
         for json_raw_book in raw_file:
             book_as_dict = (json.loads(json_raw_book))
             for field in book_as_dict.keys():
-                value = str(book_as_dict[field])
+                value = extract_correct_information_from_field_data(field, book_as_dict[field])
                 if len(fields[field]) == 0 or value not in fields[field]:
                     fields[field][value] = 1
                 else:
                     fields[field][value] += 1
 
-    if specific_field == "ALL":
+    if specific_field == None:
         for field in sorted(fields):
             values = fields[field]
             n_values = len(values)
@@ -447,26 +498,23 @@ def print_file_as_is(file_to_print):
         print(file.read())
 
         
-def print_specified_field_from_raw_file(raw_file_path, specified_fields):
+def print_specified_field_from_raw_file(raw_file_path, specified_fields, asin_filter):
     header = "|".join(specified_fields)
     print(header)
     with open(raw_file_path, 'r') as raw_file:
         for json_raw_book in raw_file:
             book_as_dict = (json.loads(json_raw_book))
-            columns = []
-            for field in specified_fields:
-                if field in book_as_dict and book_as_dict[field] is not None:
-                    if field == 'authors' or field == 'narrators':
-                        # Special case of authors and narrators which ate actually json lists and not simple strings
-                        col_value = extract_authors_from_json_list_sting(book_as_dict[field])
+            if asin_filter is None or asin_filter == book_as_dict["asin"]:
+                columns = []
+                for field in specified_fields:
+                    if field in book_as_dict and book_as_dict[field] is not None:
+                        col_value = extract_correct_information_from_field_data(field, book_as_dict[field])
                     else:
-                        col_value = str(book_as_dict[field])
-                else:
-                    col_value = '???'
-                columns.append(col_value)
-            print("|".join(columns))
+                        col_value = '???'
+                    columns.append(col_value)
+                print("|".join(columns))
+
                 
-    
 # --------------------------------------------------------------------------------
 def main():
     """Main function."""
@@ -499,7 +547,6 @@ The list of books to the screen/STDOUT is "|"-separated
         "-L",
         "--list_values_of_specified_field",
         help="List all the values associated with the raw data specified field",
-        default="ALL",
     )
     parser.add_argument(
         "-g",
@@ -518,6 +565,11 @@ The list of books to the screen/STDOUT is "|"-separated
         "--use_audible_raw_cache_file",
         help="Use Audible raw cache file instead of requesting the data",
         action="store_true",
+    )
+    parser.add_argument(
+        "-f",
+        "--asin_filter",
+        help="Ignore all books except the one with the specified ASIN",
     )
     parser.add_argument(
         "-v",
@@ -562,7 +614,8 @@ The list of books to the screen/STDOUT is "|"-separated
                 print_file_as_is(raw_library_file_path)
             else:
                 specified_fields = args.print_specific_raw_data.split(" ")
-                print_specified_field_from_raw_file(raw_library_file_path, specified_fields)
+                asin_filter      = args.asin_filter
+                print_specified_field_from_raw_file(raw_library_file_path, specified_fields, asin_filter)
         else:
             library_file_path = create_full_path(audible_cfg.get('library_file_path',     AUDIBLE_FILE_PATH_DEFAULT),     root_path)
             print_file_as_is(library_file_path)

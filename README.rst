@@ -178,11 +178,12 @@ Show the help/usage:
 Currently::
 
   usage: audible2sheet.py [-h] [-c CFG_FILE] [-r] [-R PRINT_SPECIFIC_RAW_DATA]
-                        [-l] [-g] [-a] [-A] [-v]
-
+                          [-l] [-L LIST_VALUES_OF_SPECIFIED_FIELD] [-g] [-a]
+                          [-A] [-f ASIN_FILTER] [-v]
+  
   Pull Audible library books and output them to the screen or to a Google Sheet.
   The list of books to the screen/STDOUT is "|"-separated
-
+  
   optional arguments:
     -h, --help            show this help message and exit
     -c CFG_FILE, --cfg_file CFG_FILE
@@ -196,6 +197,9 @@ Currently::
     -l, --list_raw_data_fields
                           List all the raw data fields as returned by Audible
                           (default: False)
+    -L LIST_VALUES_OF_SPECIFIED_FIELD, --list_values_of_specified_field LIST_VALUES_OF_SPECIFIED_FIELD
+                          List all the values associated with the raw data
+                          specified field (default: None)
     -g, --google_sheet_export
                           Export the Audible book list to the Google Sheet
                           specified in the configuration file. (default: False)
@@ -205,6 +209,9 @@ Currently::
     -A, --use_audible_raw_cache_file
                           Use Audible raw cache file instead of requesting the
                           data (default: False)
+    -f ASIN_FILTER, --asin_filter ASIN_FILTER
+                          Ignore all books except the one with the specified
+                          ASIN (default: None)
     -v, --verbose         Verbose output to show addditonal information
                           (default: False)
 
