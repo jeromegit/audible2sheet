@@ -95,7 +95,7 @@ class Book:
 
 
 # Useful functions to convert time and date formats
-def convert_length_in_minutes_to_hr_min_str(length_minutes):
+def convert_length_in_minutes_to_hr_min_str(length_minutes=0):
     """
     Convert minutes into something like 02h03m if given 123.
 
@@ -107,29 +107,31 @@ def convert_length_in_minutes_to_hr_min_str(length_minutes):
     return "%02dh%02dm" % (hour, minutes)
 
 
-def convert_utc_time_to_ccyymmdd(utc_time):
+def convert_utc_time_to_ccyymmdd(utc_time=""):
     """
     Convert a UTC datetime like: 2019-06-30T23:58:29.551Z and convert time to a local time/date string: CCYYMMDD.
     """
+    utc_datetime = None
     try:
         utc_datetime = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%S.%f%z")
     except ValueError:
         try:
             utc_datetime = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%S%z")
         except ValueError:
-            warn("Unknow date format for: {}".format(utc_time))
+            warn(f"Unknown date format for: {utc_time}")
 
     if utc_datetime:
         local_datetime = utc_datetime.replace(tzinfo=timezone.utc).astimezone(tz=None)
         ccyymmdd = local_datetime.strftime("%Y%m%d")
     else:
+        print(f"HERE!!!!!{utc_datetime} {utc_time[5:2]}")
         # poor man handling of unknown format but assuming the format ccyy-mm-dd
-        ccyymmdd = "".join([utc_time[0:4], utc_time[5:2], utc_time[8:2]])
+        ccyymmdd = "".join([utc_time[0:4], utc_time[5:7], utc_time[8:10]])
 
     return ccyymmdd
 
 
-def extract_authors_from_json_data(json_data):
+def extract_authors_from_json_data(json_data=''):
     """
     Audible provides a list of authors which might includes translators, foreword, adaptors and other contributors.
 
@@ -151,7 +153,7 @@ def extract_authors_from_json_data(json_data):
 
     return authors
 
-def extract_series_from_json_data(json_data):
+def extract_series_from_json_data(json_data=''):
     """
     Here's an example of thw way Audible provides that information and all we need is the title
     [{'asin': 'B006K1LXAE', 'sequence': '3', 'title': 'The Dark Tower', 'url': '/pd/The-Dark-Tower-Audiobook/B006K1LXAE'}] (1)
@@ -164,7 +166,7 @@ def extract_series_from_json_data(json_data):
     return series
 
 
-def extract_categories_from_json_data(json_data):
+def extract_categories_from_json_data(json_data=''):
     """
     Audible provides a list of cateories which takes the form of "category_ladder"
     Example:
@@ -514,10 +516,7 @@ def print_specified_field_from_raw_file(raw_file_path, specified_fields, asin_fi
                     columns.append(col_value)
                 print("|".join(columns))
 
-                
-# --------------------------------------------------------------------------------
-def main():
-    """Main function."""
+def parse_args(args):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="""
@@ -577,7 +576,14 @@ The list of books to the screen/STDOUT is "|"-separated
         help="Verbose output to show addditonal information",
         action="store_true",
     )
-    args = parser.parse_args()
+
+    return parser.parse_args()
+
+# --------------------------------------------------------------------------------
+def main():
+    """Main function."""
+    args = parse_args(sys.argv[1:])
+
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
 
