@@ -1,4 +1,5 @@
 import pytest
+import re
 import sys
 import warnings
 from audible2sheet.audible2sheet import *
@@ -18,6 +19,50 @@ def test_main_cached_raw_specified_fields(capsys):
     output = captured.out
     nlines = output.count('\n')
     assert nlines > 600
+
+def test_main_cached_raw_fields(capsys):
+    sys.argv = ['', '-A', '-r']
+    main()
+    captured = capsys.readouterr()
+    output = captured.out
+    lines = output.split("\n")
+    raw_lines_count = len([line for line in lines if line.startswith('{"asin":')])
+    assert raw_lines_count > 600
+
+def test_main_list_of_fields(capsys):
+    sys.argv = ['', '-A', '-l']
+    main()
+    captured = capsys.readouterr()
+    output = captured.out
+    lines = output.split("\n")
+    field_line_format = re.compile(r"^[a-z_]+ \(.*\)")
+    field_lines_count = len([line for line in lines if field_line_format.match(line)])
+    assert field_lines_count > 70
+
+def test_main_list_of_specified_field(capsys):
+    fields_and_count = {
+        'asin': 640,
+        'authors':  480,
+        'category_ladders':100,
+        'content_type': 7,
+        'issue_date': 500,
+        'narrators': 430,
+        'publication_name': 140,
+        'publisher_name': 70,
+        'purchase_date': 390,
+        'release_date': 516,
+        'series':130,
+        'title': 630,
+    }
+    for field, min_count in fields_and_count.items():
+        sys.argv = ['', '-A', '-L', field]
+        main()
+        captured = capsys.readouterr()
+        output = captured.out
+        lines = output.split("\n")
+        field_line_format = re.compile(r"^[A-Za-z_ ,:.0-9'\(\)/&!?-]+ \(\d+\)")
+        field_lines_count = len([line for line in lines if field_line_format.match(line)])
+        assert field_lines_count >= min_count
 
 def test_convert_length_in_minutes_to_hr_min_str():
     assert convert_length_in_minutes_to_hr_min_str(123) == "02h03m"

@@ -1,7 +1,7 @@
 audible2sheet: your Audible library in a Google sheet!
 ======================================================
 
-Script to export list of Audible books into a Google Sheet document and update that Google Sheet as new books are added to your Audible library.
+Script to export list of Audible books into a Google Sheet document and update **automagically** that Google Sheet as new books are added to your Audible library.
 
 It also allows you to print your Audible library to the screen using the default fields of interest (ASIN, TITLE, AUTHORS, DURATION, PURCHASE_DATE) or any of the many fields provided by Audible (currently 80 fields, available using the -l option)).
 
