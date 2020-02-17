@@ -371,9 +371,9 @@ def get_new_book_rows(audible_books, gs_books, gs_header_cols):
                         field_value = "'"+field_value
                 else:
                     field_value = ""
-                    new_row_cols.append(field_value)
-                    new_book_rows.append(new_row_cols)
-                    print(f"ADD: {audible_book}", file=sys.stderr)
+                new_row_cols.append(field_value)
+            new_book_rows.append(new_row_cols)
+            print(f"ADD: {audible_book}", file=sys.stderr)
 
     return new_book_rows
 
@@ -632,6 +632,7 @@ def main():
         gs_wks = get_gs_wks(gs_cfg, root_path)
         gs_library_path = create_full_path(gs_cfg.get('library_file_path', GSHEET_FILE_PATH_DEFAULT), root_path)
         gs_header_cols = get_gs_books_and_save_to_file(gs_wks, gs_library_path)
+        audible_library_path = create_full_path(audible_cfg.get('library_file_path', AUDIBLE_FILE_PATH_DEFAULT), root_path)
 
         # Load lists of books from files into dictionaries for an easy 1x1 comparison based on ASIN
         audible_books = create_books_dict_from_file(audible_library_path)
